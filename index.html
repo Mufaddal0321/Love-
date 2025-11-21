@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Love Terminal — For Amrutha</title>
+  <meta name="description" content="A romantic terminal-style web page built for Amrutha. Type commands to reveal messages, memories and surprises." />
+  <style>
+    /* Terminal baseline */
+    :root{
+      --bg:#000; --text:#7CFC00; --muted:#66c266; --accent:#ff6b9a;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+      --max-width:900px;
+    }
+    html,body{height:100%;}
+    body{
+      margin:0; font-family:var(--mono); background:radial-gradient(ellipse at top left,#001100 0%, #000 60%); color:var(--text);
+      display:flex; align-items:center; justify-content:center; padding:28px; -webkit-font-smoothing:antialiased;
+    }
+    .container{width:100%; max-width:var(--max-width);}
+
+    .viewport{
+      background:linear-gradient(180deg, rgba(0,0,0,0.85), rgba(0,0,0,0.95));
+      border-radius:12px; padding:28px; box-shadow: 0 10px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.02);
+      border:1px solid rgba(124,252,0,0.06);
+    }
+
+    header{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+    .logo{width:42px; height:42px; border-radius:8px; background:linear-gradient(135deg,#ff6b9a, #ff9bb8); display:flex; align-items:center; justify-content:center; color:white; font-weight:700}
+    h1{font-size:18px; margin:0; color:var(--text)}
+    p.lead{margin:0; color:var(--muted); font-size:13px}
+
+    /* Terminal area */
+    .terminal{
+      background:transparent; min-height:360px; color:var(--text); font-size:15px; line-height:1.45; padding:18px; border-radius:8px; overflow:auto;
+      box-sizing:border-box;
+      max-height:64vh;
+    }
+    .line{white-space:pre-wrap; word-break:break-word;}
+    .prompt{color:var(--muted)}
+
+    .input-row{display:flex; gap:8px; align-items:flex-start}
+    .cmd-input{
+      background:transparent; border:none; outline:none; color:var(--text); font-family:var(--mono); font-size:15px; flex:1;
+    }
+    .cursor{display:inline-block; width:10px; height:18px; background:var(--text); margin-left:6px; animation:blink 1s steps(2) infinite}
+    @keyframes blink{50%{opacity:0}}
+
+    .muted{color:var(--muted)}
+    .accent{color:var(--accent)}
+
+    /* Hearts overlay for secret */
+    .hearts{pointer-events:none; position:fixed; left:0; top:0; width:100%; height:100%; overflow:hidden}
+    .heart{position:absolute; font-size:22px; transform:translateY(0); animation:rise 6s linear forwards; opacity:0.95}
+    @keyframes rise{0%{transform:translateY(120vh) scale(0.6); opacity:0} 10%{opacity:1} 100%{transform:translateY(-20vh) scale(1.2); opacity:0}}
+
+    /* responsive */
+    @media (max-width:520px){
+      .viewport{padding:16px}
+      .terminal{font-size:14px}
+    }
+
+    /* small helper button */
+    .controls{display:flex; gap:8px; margin-top:12px}
+    .btn{background:transparent; border:1px solid rgba(124,252,0,0.08); padding:6px 10px; color:var(--muted); border-radius:8px; cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+
+    /* accessibility focus */
+    .btn:focus, .cmd-input:focus{box-shadow:0 0 0 3px rgba(124,252,0,0.06)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="viewport" role="region" aria-label="Love Terminal for Amrutha">
+      <header>
+        <div class="logo">R</div>
+        <div>
+          <h1>Love Terminal</h1>
+          <p class="lead">Type <span class="muted">help</span> to begin — lovingly crafted for <strong>Amrutha</strong>.</p>
+        </div>
+      </header>
+
+      <main id="terminal" class="terminal" aria-live="polite"></main>
+
+      <div style="display:flex; gap:8px; align-items:center; margin-top:10px">
+        <div style="color:var(--muted); font-size:13px">amrutha@love-terminal:~$</div>
+        <input id="cmd" class="cmd-input" aria-label="Terminal input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+        <div class="cursor" aria-hidden="true"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="btnHelp">help</button>
+        <button class="btn" id="btnLove">show_love</button>
+        <button class="btn" id="btnSpecial">amrutha_special</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="hearts" id="hearts" aria-hidden="true"></div>
+
+  <!-- Optional audio: replace src with a hosted mp3 file you own or want to use. Autoplay may be blocked on some browsers. -->
+  <audio id="bgm" preload="none" loop>
+    <!-- <source src="/assets/soft-melody.mp3" type="audio/mpeg"> -->
+  </audio>
+
+  <script>
+    /* -----------------------------
+       Professional, well-documented
+       Love Terminal - single-file
+       ----------------------------- */
+
+    const terminal = document.getElementById('terminal');
+    const input = document.getElementById('cmd');
+    const hearts = document.getElementById('hearts');
+    const bgm = document.getElementById('bgm');
+
+    // -- Customizable content: edit these arrays/messages to personalize.
+    const LOVEMSG = "Loading love.exe...\n❤️ Love for Amrutha: 100%\nYou are the melody in every silence.\nYou are my calm and my favourite song.";
+
+    const REASONS = [
+      "She supports me unconditionally.",
+      "She loves music and old-fashioned romance.",
+      "She makes ordinary moments feel like home.",
+      "She listens and knows when I need a laugh.",
+      "Her smile is my favourite sunrise."
+    ];
+
+    const MEMORIES = [
+  "Our first date at Lal Bagh — walking together, talking endlessly, and feeling something special begin.",
+  "Having lunch and sharing sweet moments at CAJC — simple, peaceful, and perfect because it was with you.",
+  "Graduation — celebrating our achievements together and realizing how far we've come.",
+  "Joining the same college after — a beautiful coincidence that made everything feel meant to be."
+];
+
+    const FUTURE = [
+      'A cozy apartment filled with plants and records.',
+      'A small world-travel list we will check slowly.',
+      'Sundays that begin with music and pancakes.'
+    ];
+
+    const MESSAGES = [
+      'Good morning, my favourite melody.',
+      'You are loved, endlessly. — Ronnie',
+      'Here is a little secret: you make me better.'
+    ];
+
+    // -- Internal helpers (do not change unless you know what you're doing)
+    function appendLine(text, cls){
+      const el = document.createElement('div');
+      el.className = 'line' + (cls? ' '+cls:'');
+      el.textContent = text;
+      terminal.appendChild(el);
+      terminal.scrollTop = terminal.scrollHeight;
+      return el;
+    }
+
+    function typeLine(text, speed = 18){
+      return new Promise(resolve => {
+        const el = document.createElement('div'); el.className='line'; terminal.appendChild(el);
+        let i=0;
+        function step(){
+          if(i<=text.length){ el.textContent = text.slice(0,i); terminal.scrollTop = terminal.scrollHeight; i++; setTimeout(step, speed); }
+          else resolve();
+        }
+        step();
+      });
+    }
+
+    function slowPrint(lines, speed=18){
+      return lines.reduce((p, line) => p.then(() => typeLine(line, speed)), Promise.resolve());
+    }
+
+    function clearTerminal(){ terminal.innerHTML = ''; }
+
+    function playHearts(count=18){
+      hearts.innerHTML='';
+      for(let i=0;i<count;i++){
+        const h = document.createElement('div'); h.className='heart';
+        h.textContent = '💖';
+        h.style.left = Math.floor(Math.random()*100)+'%';
+        h.style.fontSize = (12+Math.random()*30)+'px';
+        h.style.animationDelay = (Math.random()*2)+'s';
+        hearts.appendChild(h);
+      }
+      setTimeout(()=> hearts.innerHTML='', 7000);
+    }
+
+    // -- Command handlers
+    const COMMANDS = {
+      help: async () => {
+        await slowPrint([
+          'Available commands:','',
+          'help                     — show this help',
+          'show_love                — a short love message',
+          'reasons_i_love_you --all — list reasons',
+          'memories                 — list special moments',
+          'play_music               — play/pause background music',
+          'message_today            — a short message from Ronnie',
+          'future                   — a peek at dreams together',
+          'clear                    — clear the terminal',
+          'amrutha_special          — reveal a secret surprise',
+          '\nTip: use the buttons below for quick commands.'
+        ], 8);
+      },
+
+      show_love: async () => { await slowPrint(LOVEMSG.split('\n')); },
+
+      'reasons_i_love_you': async (args) => {
+        if(args.includes('--all')){
+          for(const r of REASONS){ await typeLine('- '+r); }
+        } else {
+          await typeLine(REASONS[0]);
+        }
+      },
+
+      memories: async () => {
+        for(const m of MEMORIES){ await typeLine(`${m.title}: ${m.desc}`); }
+      },
+
+      play_music: async () => {
+        if(!bgm.src){ appendLine('No music file configured. See README to add one.', 'muted'); return }
+        if(bgm.paused){ await bgm.play().catch(()=> appendLine('Autoplay blocked — press play manually.', 'muted')); appendLine('Playing music...', 'muted'); }
+        else { bgm.pause(); appendLine('Music paused', 'muted') }
+      },
+
+      message_today: async () => { await typeLine(MESSAGES[Math.floor(Math.random()*MESSAGES.length)]); },
+
+      future: async () => { for(const f of FUTURE) await typeLine('- '+f); },
+
+      clear: async () => { clearTerminal(); },
+
+      amrutha_special: async () => {
+        await slowPrint(['Revealing...']);
+        playHearts(26);
+        await slowPrint(["Amrutha — you are my forever.\nThank you for being you. \n\n— Ronnie ❤️"], 10);
+      }
+    };
+
+    // -- Parser & executor
+    async function runCommand(raw){
+      if(!raw.trim()) return;
+      appendLine('ronnie@love-terminal:~$ '+raw, 'prompt');
+      const parts = raw.trim().split(/\s+/);
+      const cmd = parts[0];
+      const args = parts.slice(1);
+      const fn = COMMANDS[cmd];
+      if(fn) {
+        try{ await fn(args); }
+        catch(e){ appendLine('Error running command: '+String(e), 'muted'); }
+      } else {
+        appendLine(`Command not found: ${cmd}. Type 'help' to see available commands.`, 'muted');
+      }
+    }
+
+    // -- Input handling
+    input.addEventListener('keydown', async (e)=>{
+      if(e.key === 'Enter'){
+        const val = input.value; input.value='';
+        await runCommand(val);
+      } else if(e.key === 'c' && (e.ctrlKey || e.metaKey)){
+        // mimic ctrl+c
+        input.value=''; appendLine('^C', 'muted');
+      }
+    });
+
+    // -- Quick buttons
+    document.getElementById('btnHelp').addEventListener('click', ()=> runCommand('help'));
+    document.getElementById('btnLove').addEventListener('click', ()=> runCommand('show_love'));
+    document.getElementById('btnSpecial').addEventListener('click', ()=> runCommand('amrutha_special'));
+
+    // -- Boot sequence (fast) then focus
+    (async function boot(){
+      await slowPrint(['Booting Love OS 1.0...', 'Initializing feelings...', 'Loading memories...', 'Welcome, Amrutha ❤️'], 20);
+      appendLine('Type \"help\" to get started.');
+      input.focus();
+    })();
+
+    // Accessibility: focus input when user taps terminal area
+    terminal.addEventListener('click', ()=> input.focus());
+
+    // expose an API for small customizations (useful if you load this in other pages)
+    window.LoveTerminal = { runCommand, appendLine, typeLine };
+  </script>
+</body>
+</html>
